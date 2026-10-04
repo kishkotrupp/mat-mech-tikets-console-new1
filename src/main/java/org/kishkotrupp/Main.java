@@ -12,8 +12,9 @@ public class Main {
         System.out.println("Hello git");
 
         Content content = new FileContent();
-
         Collection collection = new Collection(content);
-        //new Dialog(collection).run();
+
+        IO io = new ConsoleIO();
+        new Dialog(collection, io).run();
     }
 }
