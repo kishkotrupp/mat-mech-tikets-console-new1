@@ -9,7 +9,6 @@ public class Main {
         System.setOut(new PrintStream(System.out, true, StandardCharsets.UTF_8));
         System.setErr(new PrintStream(System.err, true, StandardCharsets.UTF_8));
         //-------
-        System.out.println("Hello git");
 
         Content content = new FileContent();
         Collection collection = new Collection(content);
