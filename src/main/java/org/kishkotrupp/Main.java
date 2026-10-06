@@ -3,8 +3,6 @@ package org.kishkotrupp;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Main {
     public static void main(String[] args) {
         //russ out
@@ -12,5 +10,11 @@ public class Main {
         System.setErr(new PrintStream(System.err, true, StandardCharsets.UTF_8));
         //-------
         System.out.println("Hello git");
+
+        Content content = new FileContent();
+        Collection collection = new Collection(content);
+
+        IO io = new ConsoleIO();
+        new Dialog(collection, io).run();
     }
 }

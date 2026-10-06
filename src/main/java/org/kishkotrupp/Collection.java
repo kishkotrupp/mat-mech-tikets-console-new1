@@ -2,9 +2,23 @@ package org.kishkotrupp;
 
 import java.util.List;
 
-public interface Collection {
-    List<String> listSubjects();
-    List<String> listAuthors(String subject);
+public class Collection {
 
-    String readContent(String subject, String author);
+    private final Content content;
+
+    public Collection(Content content) {
+        this.content = content;
+    }
+
+    public List<String> listSubjects() {
+        return content.listSubjects();
+    }
+
+    public List<String> listAuthors(String subject) {
+        return content.listAuthors(subject);
+    }
+
+    public String readContent(String subject, String author) {
+        return content.readContent(subject, author);
+    }
 }
