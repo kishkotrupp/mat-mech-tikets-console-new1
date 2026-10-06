@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-public class FileContent implements Content{
+public class FileContent implements Content {
 
     private final Path baseDir;
 
@@ -26,17 +26,18 @@ public class FileContent implements Content{
     public FileContent(Path baseDir) {
         this.baseDir = baseDir;
     }
-// ==================== Автораспаковка ====================
+
+    // ==================== Поиск и распаковка subjects ====================
 
     private static Path ensureSubjectsExist() {
         try {
             Path jarDir = resolveJarDir();
             Path subjectsDir = jarDir.resolve("subjects");
 
-            if (!Files.exists(subjectsDir)) {
+            if (!Files.exists(subjectsDir) || isEmpty(subjectsDir)) {
                 Files.createDirectories(subjectsDir);
                 unpackSubjects(subjectsDir);
-                System.out.println("Билеты распакованы в: " + subjectsDir);
+                System.out.println("subjects распакована в: " + subjectsDir);
             }
 
             return subjectsDir;
@@ -45,7 +46,15 @@ public class FileContent implements Content{
         }
     }
 
-    // Определяем папку, где лежит jar (или корень проекта в IDE)
+    private static boolean isEmpty(Path dir) {
+        try (var stream = Files.list(dir)) {
+            return stream.findAny().isEmpty();
+        } catch (IOException e) {
+            return true;
+        }
+    }
+
+    // Папка, где лежит jar (или build/ в IDE)
     private static Path resolveJarDir() throws Exception {
         URL url = FileContent.class
                 .getProtectionDomain()
@@ -54,21 +63,22 @@ public class FileContent implements Content{
 
         Path codePath = Paths.get(url.toURI());
 
-        // В jar: codePath = .../app.jar → берём родителя
+        // В jar: codePath = .../app.jar → родитель
         if (Files.isRegularFile(codePath)) {
             return codePath.getParent();
         }
 
-        // В IDE: codePath = .../out/production/classes → поднимаемся до корня проекта
-        // (обычно на 3 уровня вверх: classes → production → out → корень)
+        // В IDE: codePath = .../build/classes/java/main → поднимаемся до build
         Path p = codePath;
-        for (int i = 0; i < 3 && p.getParent() != null; i++) {
+        while (p != null && !"build".equals(p.getFileName() == null ? null : p.getFileName().toString())) {
             p = p.getParent();
         }
-        return p;
+
+        return (p != null) ? p : Paths.get("").toAbsolutePath();
     }
 
-    // Распаковываем subjects из ресурсов в целевую папку
+    // ==================== Распаковка ====================
+
     private static void unpackSubjects(Path target) throws Exception {
         URL url = FileContent.class
                 .getProtectionDomain()
@@ -78,13 +88,23 @@ public class FileContent implements Content{
         Path codePath = Paths.get(url.toURI());
 
         if (Files.isRegularFile(codePath)) {
+            // Мы в jar
             unpackFromJar(codePath, target);
         } else {
-            unpackFromDir(codePath.resolve("subjects"), target);
+            // Мы в IDE: ресурсы в build/resources/main/subjects
+            Path buildDir = codePath;
+            while (buildDir != null && !"build".equals(buildDir.getFileName() == null ? null : buildDir.getFileName().toString())) {
+                buildDir = buildDir.getParent();
+            }
+
+            Path resources = (buildDir != null)
+                    ? buildDir.resolve("resources/main/subjects")
+                    : codePath.resolve("subjects");
+
+            unpackFromDir(resources, target);
         }
     }
 
-    // Распаковка из jar
     private static void unpackFromJar(Path jarPath, Path target) throws IOException {
         try (JarFile jar = new JarFile(jarPath.toFile())) {
             Enumeration<JarEntry> entries = jar.entries();
@@ -92,11 +112,8 @@ public class FileContent implements Content{
                 JarEntry entry = entries.nextElement();
                 String name = entry.getName();
 
-                if (!name.startsWith("subjects/") || entry.isDirectory()) {
-                    continue;
-                }
+                if (!name.startsWith("subjects/") || entry.isDirectory()) continue;
 
-                // subjects/Матан/Иванов.txt → target/Матан/Иванов.txt
                 String relative = name.substring("subjects/".length());
                 Path out = target.resolve(relative);
 
@@ -108,9 +125,11 @@ public class FileContent implements Content{
         }
     }
 
-    // Распаковка из папки (когда запускаем в IDE)
     private static void unpackFromDir(Path source, Path target) throws IOException {
-        if (!Files.exists(source)) return;
+        if (!Files.exists(source)) {
+            System.out.println("Ресурсы subjects не найдены: " + source);
+            return;
+        }
 
         try (var stream = Files.walk(source)) {
             stream.forEach(src -> {
@@ -132,6 +151,7 @@ public class FileContent implements Content{
     }
 
     // ==================== Content ====================
+
     @Override
     public List<String> listSubjects() {
         List<String> result = new ArrayList<>();
@@ -142,9 +162,7 @@ public class FileContent implements Content{
         if (items == null) return result;
 
         for (File item : items) {
-            if (item.isDirectory()) {
-                result.add(item.getName());
-            }
+            if (item.isDirectory()) result.add(item.getName());
         }
         return result;
     }
