@@ -13,6 +13,7 @@ repositories {
 dependencies {
     // Основная библиотека для Telegram-ботов
     implementation 'org.telegram:telegrambots:6.9.7.1'
+    implementation 'org.xerial:sqlite-jdbc:3.46.0.0'
 }
 
 java {
