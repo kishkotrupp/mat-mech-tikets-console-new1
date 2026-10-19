@@ -1,5 +1,6 @@
 package org.kishkotrupp;
 
+import java.io.File;
 import java.util.List;
 
 public class Collection {
@@ -18,7 +19,11 @@ public class Collection {
         return content.listAuthors(subject);
     }
 
-    public String readContent(String subject, String author) {
-        return content.readContent(subject, author);
+    public File getFile(String subject, String author) {
+        return content.getFile(subject, author);
+    }
+
+    public void saveFile(String subject, String fileName, java.io.InputStream data) throws java.io.IOException {
+        content.saveFile(subject, fileName, data);
     }
 }
