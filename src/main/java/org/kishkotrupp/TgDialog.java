@@ -2,8 +2,10 @@ package org.kishkotrupp;
 
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
+import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.Document;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -11,8 +13,11 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
+import java.io.InputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class TgDialog extends TelegramLongPollingBot {
 
@@ -20,6 +25,10 @@ public class TgDialog extends TelegramLongPollingBot {
     private static final String BACK_DATA = "back";
     private static final String SUBJ_PREFIX = "subj:";
     private static final String FILE_PREFIX = "file:";
+
+    private static final int MAX_NAME_LEN = 64;
+    private static final long MAX_UPLOAD_BYTES = 20L * 1024* 1024;
+    private static final Set<String> ALLOWED_EXT = Set.of("pdf", "doc", "docx", "txt");
 
     private final String token;
     private final String username;
@@ -46,7 +55,9 @@ public class TgDialog extends TelegramLongPollingBot {
         try {
             if (update.hasMessage() && update.getMessage().hasText()) {
                 handleTextMessage(update);
-            } else if (update.hasCallbackQuery()) {
+            } else if ((update.hasMessage() && update.getMessage().hasDocument())){
+                handleDocument(update);
+            } else if(update.hasCallbackQuery()){
                 handleCallbackQuery(update);
             }
         } catch (Exception e) {
@@ -190,7 +201,8 @@ public class TgDialog extends TelegramLongPollingBot {
         sendText(chatId,
                 "Привет! Я бот для подготовки к экзаменам на матмехе.\n" +
                         "Выбери предмет, потом файл — я пришлю его тебе.\n" +
-                        "Нажми /help для справки.");
+                        "Нажми /help для справки.\n" +
+                "Чтобы добавить файл отправь его как документ и в подписи напиши название предмета. Макс. 20 МБ, имя до 64 символов, форматы: pdf, doc, docx, txt");
     }
 
     private void showHelp(long chatId) throws TelegramApiException {
@@ -199,7 +211,8 @@ public class TgDialog extends TelegramLongPollingBot {
                         "1) /start — показать список предметов.\n" +
                         "2) Нажми на предмет — увидишь файлы.\n" +
                         "3) Нажми на файл — я его пришлю.\n" +
-                        "4) Кнопка «Назад» возвращает к списку предметов.");
+                        "4) Кнопка «Назад» возвращает к списку предметов.\n" +
+                "5) Чтобы добавить файл отправь его как документ и в подписи напиши название предмета. Макс. 20 МБ, имя до 64 символов, форматы: pdf, doc, docx, txt");
     }
 
     private void sendText(long chatId, String text) throws TelegramApiException {
@@ -208,4 +221,55 @@ public class TgDialog extends TelegramLongPollingBot {
         msg.setText(text);
         execute(msg);
     }
+
+    private void handleDocument(Update update) throws TelegramApiException {
+        long chatId = update.getMessage().getChatId();
+        Document doc = update.getMessage().getDocument();
+        String subject = update.getMessage().getCaption();
+        String name = doc.getFileName();
+
+        if (subject == null || subject.isBlank()) {
+            sendText(chatId, "Напиши название предмета в подписи файла");
+            return;
+        }
+        subject = subject.trim();
+
+        if (!collection.listSubjects().contains(subject)) {
+            sendText(chatId, "Предмета «" + subject + "» нет. Доступные: "
+                    + String.join(", ", collection.listSubjects()));
+            return;
+        }
+
+        if (name == null || name.length() > MAX_NAME_LEN) {
+            sendText(chatId, "Имя файла должно быть не длиннее " + MAX_NAME_LEN + " символов.");
+            return;
+        }
+
+        int dot = name.lastIndexOf('.');
+        String ext = dot < 0 ? "" : name.substring(dot + 1).toLowerCase();
+        if (!ALLOWED_EXT.contains(ext)) {
+            sendText(chatId, "Формат не подходит. Разрешены: " + String.join(", ", ALLOWED_EXT));
+            return;
+        }
+        if (doc.getFileSize() != null && doc.getFileSize() > MAX_UPLOAD_BYTES) {
+            sendText(chatId, "Файл больше 20 МБ.");
+            return;
+        }
+
+        try {
+            org.telegram.telegrambots.meta.api.objects.File tgFile = execute(new GetFile(doc.getFileId()));
+            try (InputStream in = downloadFileAsStream(tgFile.getFilePath())) {
+                collection.saveFile(subject, name, in);
+            }
+            sendText(chatId, "Готово! Файл «" + name + "» добавлен в «" + subject + "».");
+            showSubjects(chatId);
+        } catch (FileAlreadyExistsException e) {
+            sendText(chatId, "Файл с таким именем уже есть. Переименуй и отправь снова.");
+        } catch (java.io.IOException e) {
+            e.printStackTrace();
+            sendText(chatId, "Не получилось сохранить файл.");
+        }
+    }
+
+
 }
