@@ -40,11 +40,11 @@ public class DataBaseRating implements RatingStorage {
 
     @Override
     public void saveRating(String subject, String author, long userId, int score) {
-        String sql = """
         // вставить новую строку
+        // если такой ключ уже есть обнови score на то что мы пытались вставить в score
+        String sql = """
         INSERT INTO ratings (subject, author, user_id, score)
         VALUES (?, ?, ?, ?)
-        // если такой ключ уже есть обнови score на то что мы пытались вставить в score
         ON CONFLICT(subject, author, user_id) DO UPDATE SET score = excluded.score
         """;
 
@@ -63,7 +63,7 @@ public class DataBaseRating implements RatingStorage {
 
     @Override
     public double getMiddleRating(String subject, String author) {
-        // посчитай среднее арифметическое для колонки score
+        //AVG(score) посчитай среднее арифметическое для колонки score
         String sql = "SELECT AVG(score) FROM ratings WHERE subject = ? AND author = ?";
 
         try (Connection conn = DriverManager.getConnection(dbUrl);
@@ -82,6 +82,19 @@ public class DataBaseRating implements RatingStorage {
 
     @Override
     public int getRatingCountPeople(String subject, String author) {
+        // посчитай количество строк
+        String sql = "SELECT COUNT(*) FROM ratings WHERE subject = ? AND author = ?";
+
+        try (Connection conn = DriverManager.getConnection(dbUrl);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, subject);
+            pstmt.setString(2, author);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return 0;
     }
 }
