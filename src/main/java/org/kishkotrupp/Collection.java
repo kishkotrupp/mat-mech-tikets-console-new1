@@ -22,4 +22,8 @@ public class Collection {
     public File getFile(String subject, String author) {
         return content.getFile(subject, author);
     }
+
+    public void saveFile(String subject, String fileName, java.io.InputStream data) throws java.io.IOException {
+        content.saveFile(subject, fileName, data);
+    }
 }

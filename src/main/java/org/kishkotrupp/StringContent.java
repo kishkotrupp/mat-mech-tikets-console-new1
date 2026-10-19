@@ -61,4 +61,14 @@ public class StringContent implements Content {
         if (name.contains("..")) return false;
         return true;
     }
+
+    @Override
+    public void saveFile(String subject, String fileName, java.io.InputStream data) throws java.io.IOException {
+        File dir = new File (baseDir, subject);
+        if(!dir.isDirectory()){
+            throw new java.io.IOException("Нет такого предмета");
+        }
+        java.nio.file.Files.copy(data, new File(dir, fileName).toPath());
+    }
+
 }
