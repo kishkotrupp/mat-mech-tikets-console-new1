@@ -27,7 +27,7 @@ public class TgDialog extends TelegramLongPollingBot {
     private static final String FILE_PREFIX = "file:";
     private static final String RATE_PREFIX = "rate:";
 
-    private static final int MAX_NAME_LEN = 64;
+    private static final int MAX_NAME_LEN = 20;
     private static final long MAX_UPLOAD_BYTES = 20L * 1024* 1024;
     private static final Set<String> ALLOWED_EXT = Set.of("pdf", "doc", "docx", "txt");
 

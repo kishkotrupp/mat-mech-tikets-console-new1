@@ -28,7 +28,9 @@ public class TgDialogTest {
         subjectDir = new File(tempDir.toFile(), "алгем");
         subjectDir.mkdirs();
 
-        Collection collection = new Collection(new StringContent(tempDir.toString()));
+        RatingStorage mockRating = mock(RatingStorage.class);
+
+        Collection collection = new Collection(new StringContent(tempDir.toString()), mockRating);
         bot = spy(new TgDialog("token", "test_bot", collection));
 
         doReturn(null).when(bot).execute(any(SendMessage.class));
@@ -74,7 +76,7 @@ public class TgDialogTest {
 
     @Test
     void nameTooLong() throws Exception {
-        send("алгем", "a".repeat(61) + ".pdf", 100);
+        send("алгем", "a".repeat(21) + ".pdf", 100);
         assertNothingSaved();
     }
 
