@@ -25,6 +25,7 @@ public class TgDialog extends TelegramLongPollingBot {
     private static final String BACK_DATA = "back";
     private static final String SUBJ_PREFIX = "subj:";
     private static final String FILE_PREFIX = "file:";
+    private static final String RATE_PREFIX = "rate:";
 
     private static final int MAX_NAME_LEN = 64;
     private static final long MAX_UPLOAD_BYTES = 20L * 1024* 1024;
@@ -88,19 +89,23 @@ public class TgDialog extends TelegramLongPollingBot {
         long chatId = update.getCallbackQuery().getMessage().getChatId();
         // callbackId — это строка вида "4382910756893210472". Она уникальна для каждого нажатия.
         String callbackId = update.getCallbackQuery().getId();
-
+        // получаем ID пользователя
+        long userId = update.getCallbackQuery().getFrom().getId();
         // execute(...) — отправляем в Telegram, создаем объект «ответить на callback с ID X» (нажатие на кнопочку) она от этого пиликает и через 10 сек ругается если мы ничего не отправим
-        execute(new AnswerCallbackQuery(callbackId));
+        //execute(new AnswerCallbackQuery(callbackId));
 
 
         if (data == null) return;
 
         if (data.equals(BACK_DATA)) {
+            execute(new AnswerCallbackQuery(callbackId));
             showSubjects(chatId);
         } else if (data.startsWith(SUBJ_PREFIX)) {
+            execute(new AnswerCallbackQuery(callbackId));
             String subject = data.substring(SUBJ_PREFIX.length());
             showAuthors(chatId, subject);
         } else if (data.startsWith(FILE_PREFIX)) {
+            execute(new AnswerCallbackQuery(callbackId));
             String payload = data.substring(FILE_PREFIX.length());
             int sep = payload.indexOf(':');
             if (sep < 0) {
@@ -111,9 +116,25 @@ public class TgDialog extends TelegramLongPollingBot {
             String author = payload.substring(sep + 1);
 
             sendFile(chatId, subject, author);
-            showAuthors(chatId, subject);
+            sendRatingKeyboard(chatId, subject, author);
+        } else if (data.startsWith(RATE_PREFIX)) {
+            String payload = data.substring(RATE_PREFIX.length());
+            String[] parts = payload.split(":");
+            if (parts.length == 3) {
+                String subject = parts[0];
+                String author = parts[1];
+                int score = Integer.parseInt(parts[2]);
+
+                collection.saveRating(subject, author, userId, score);
+
+                AnswerCallbackQuery answer = new AnswerCallbackQuery(callbackId);
+                answer.setText("Оценка сохранена!");
+                execute(answer);
+                showSubjects(chatId);
+            }
         }
     }
+
 
     private void showSubjects(long chatId) throws TelegramApiException {
         List<String> subjects = collection.listSubjects();
@@ -155,7 +176,12 @@ public class TgDialog extends TelegramLongPollingBot {
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         for (String author : authors) {
             InlineKeyboardButton btn = new InlineKeyboardButton();
-            btn.setText(author);
+
+            double middleRating = collection.getMiddleRating(subject, author);
+            int countPeople = collection.getRatingCountPeople(subject, author);
+            String ratingStr = (countPeople > 0) ? String.format(" ★%.1f (%d)", middleRating, countPeople) : "  ";
+
+            btn.setText(author + ratingStr);
             btn.setCallbackData(FILE_PREFIX + subject + ":" + author);
             List<InlineKeyboardButton> row = new ArrayList<>();
             row.add(btn);
@@ -178,6 +204,35 @@ public class TgDialog extends TelegramLongPollingBot {
         msg.setReplyMarkup(keyboard);
         execute(msg);
     }
+
+    private void sendRatingKeyboard(long chatId, String subject, String author) throws TelegramApiException {
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        List<InlineKeyboardButton> row1 = new ArrayList<>();
+        List<InlineKeyboardButton> row2 = new ArrayList<>();
+
+        for (int i = 1; i <= 10; i++) {
+            InlineKeyboardButton btn = new InlineKeyboardButton();
+            btn.setText(String.valueOf(i));
+            btn.setCallbackData(RATE_PREFIX + subject + ":" + author + ":" + i);
+
+            if (i <= 5) row1.add(btn);
+            else row2.add(btn);
+        }
+
+        rows.add(row1);
+        rows.add(row2);
+
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        keyboard.setKeyboard(rows);
+
+        SendMessage msg = new SendMessage();
+        msg.setChatId(String.valueOf(chatId));
+        msg.setText("Оцени автора " + author + " от 1 до 10:");
+        msg.setReplyMarkup(keyboard);
+        execute(msg);
+    }
+
 
     private void sendFile(long chatId, String subject, String author) throws TelegramApiException {
         File file = collection.getFile(subject, author);

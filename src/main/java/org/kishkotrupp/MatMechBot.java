@@ -8,6 +8,7 @@ public class MatMechBot {
 
     private static final String BOT_USERNAME = "MathMechTicketsBot";
     private static final String SUBJECTS_DIR = "subjects";
+    private static final String DB_FILE = "ratings.db";
 
     public static void main(String[] args) throws TelegramApiException {
         String botToken = System.getenv("TG_BOT_TOKEN");
@@ -18,7 +19,8 @@ public class MatMechBot {
 
         // Собираем зависимости: StringContent -> Collection -> TgDialog
         Content content = new StringContent(SUBJECTS_DIR);
-        Collection collection = new Collection(content);
+        RatingStorage ratingStorage = new DataBaseRating(DB_FILE);
+        Collection collection = new Collection(content, ratingStorage);
         TgDialog bot = new TgDialog(botToken, BOT_USERNAME, collection);
 
         // Регистрируем бота в Telegram API — с этого момента он принимает updates
