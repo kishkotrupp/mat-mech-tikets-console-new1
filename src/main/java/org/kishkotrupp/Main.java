@@ -28,8 +28,8 @@ public class Main {
             startTgBot(ticketManager);
             keepAlive(); // Блокируем поток, чтобы бот работал
         }else if (args[0].equalsIgnoreCase("BOTH")){
-            startConsole(ticketManager);
             startTgBot(ticketManager);
+            startConsole(ticketManager);
         }
 
 
