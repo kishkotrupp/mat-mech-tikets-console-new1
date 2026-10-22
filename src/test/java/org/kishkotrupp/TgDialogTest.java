@@ -30,8 +30,8 @@ public class TgDialogTest {
 
         RatingStorage mockRating = mock(RatingStorage.class);
 
-        Collection collection = new Collection(new StringContent(tempDir.toString()), mockRating);
-        bot = spy(new TgDialog("token", "test_bot", collection));
+        TicketManager ticketManager = new TicketManager(new FileTicketStorage(tempDir.toString()), mockRating);
+        bot = spy(new TgDialog("token", "test_bot", ticketManager));
 
         doReturn(null).when(bot).execute(any(SendMessage.class));
     }

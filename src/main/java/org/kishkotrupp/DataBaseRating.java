@@ -10,6 +10,11 @@ import java.sql.Statement;
 public class DataBaseRating implements RatingStorage {
 
     private final String dbUrl;
+    private static final String DB_FILE = "ratings.db";
+
+    public DataBaseRating() {
+        this(DB_FILE);
+    }
 
     public DataBaseRating(String dbPath) {
         // JDBC (Java Database Connectivity) требует, чтобы путь начинался с префикса.

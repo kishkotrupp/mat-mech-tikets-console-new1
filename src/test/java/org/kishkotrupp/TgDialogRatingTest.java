@@ -13,12 +13,12 @@ import static org.mockito.Mockito.*;
 public class TgDialogRatingTest {
 
     TgDialog bot;
-    Collection mockCollection;
+    TicketManager mockTicketManager;
 
     @BeforeEach
     void setUp() throws Exception {
-        mockCollection = mock(Collection.class);
-        bot = spy(new TgDialog("token", "test_bot", mockCollection));
+        mockTicketManager = mock(TicketManager.class);
+        bot = spy(new TgDialog("token", "test_bot", mockTicketManager));
         doReturn(null).when(bot).execute(any(AnswerCallbackQuery.class));
     }
 
@@ -54,7 +54,7 @@ public class TgDialogRatingTest {
 
         // --- ПРОВЕРКИ ---
         // 1. Убеждаемся, что бот передал правильные данные в Collection
-        verify(mockCollection, times(1)).saveRating("алгем", "a.pdf", 999L, 8);
+        verify(mockTicketManager, times(1)).saveRating("алгем", "a.pdf", 999L, 8);
 
         // 2. Убеждаемся, что бот попытался отправить всплывающее окно
         verify(bot, times(1)).execute(any(AnswerCallbackQuery.class));

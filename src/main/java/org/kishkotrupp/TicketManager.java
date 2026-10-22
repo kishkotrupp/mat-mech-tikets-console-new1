@@ -3,32 +3,36 @@ package org.kishkotrupp;
 import java.io.File;
 import java.util.List;
 
-public class Collection {
+public class TicketManager {
 
-    private final Content content;
+    private final TicketStorage ticketStorage;
     private final RatingStorage ratingStorage;
 
-    public Collection(Content content, RatingStorage ratingStorage) {
-        this.content = content;
+    public TicketManager(TicketStorage ticketStorage, RatingStorage ratingStorage) {
+        this.ticketStorage = ticketStorage;
         this.ratingStorage = ratingStorage;
     }
 
     //=====================================
 
     public List<String> listSubjects() {
-        return content.listSubjects();
+        return ticketStorage.listSubjects();
     }
 
     public List<String> listAuthors(String subject) {
-        return content.listAuthors(subject);
+        return ticketStorage.listAuthors(subject);
     }
 
     public File getFile(String subject, String author) {
-        return content.getFile(subject, author);
+        return ticketStorage.getFile(subject, author);
+    }
+
+    public String readContent(String subject, String author) {
+        return ticketStorage.readFile(subject, author);
     }
 
     public void saveFile(String subject, String fileName, java.io.InputStream data) throws java.io.IOException {
-        content.saveFile(subject, fileName, data);
+        ticketStorage.saveFile(subject, fileName, data);
     }
 
     //=========================================

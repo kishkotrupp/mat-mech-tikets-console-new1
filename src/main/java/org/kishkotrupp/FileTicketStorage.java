@@ -1,14 +1,17 @@
 package org.kishkotrupp;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-public class StringContent implements Content {
+public class FileTicketStorage implements TicketStorage {
 
     private final File baseDir;
 
-    public StringContent(String dirPath) {
+    public FileTicketStorage(String dirPath) {
         this.baseDir = new File(dirPath);
         if (!baseDir.exists()) {
             baseDir.mkdirs();
@@ -69,6 +72,24 @@ public class StringContent implements Content {
             throw new java.io.IOException("Нет такого предмета");
         }
         java.nio.file.Files.copy(data, new File(dir, fileName).toPath());
+    }
+
+    @Override
+    public String readFile(String subject, String author) {
+        if (!isSafe(subject) || !isSafe(author)) {
+            return null;
+        }
+
+        File file = new File(new File(baseDir, subject), author);
+        if (!file.isFile()) {
+            return null; // Файла нет — возвращаем null
+        }
+
+        try {
+            return Files.readString(file.toPath(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return "Ошибка чтения файла: " + e.getMessage();
+        }
     }
 
 }

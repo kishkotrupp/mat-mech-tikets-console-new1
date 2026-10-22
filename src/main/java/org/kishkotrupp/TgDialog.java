@@ -33,12 +33,12 @@ public class TgDialog extends TelegramLongPollingBot {
 
     private final String token;
     private final String username;
-    private final Collection collection;
+    private final TicketManager ticketManager;
 
-    public TgDialog(String token, String username, Collection collection) {
+    public TgDialog(String token, String username, TicketManager ticketManager) {
         this.token = token;
         this.username = username;
-        this.collection = collection;
+        this.ticketManager = ticketManager;
     }
 
     @Override
@@ -125,7 +125,7 @@ public class TgDialog extends TelegramLongPollingBot {
                 String author = parts[1];
                 int score = Integer.parseInt(parts[2]);
 
-                collection.saveRating(subject, author, userId, score);
+                ticketManager.saveRating(subject, author, userId, score);
 
                 AnswerCallbackQuery answer = new AnswerCallbackQuery(callbackId);
                 answer.setText("Оценка сохранена!");
@@ -137,7 +137,7 @@ public class TgDialog extends TelegramLongPollingBot {
 
 
     private void showSubjects(long chatId) throws TelegramApiException {
-        List<String> subjects = collection.listSubjects();
+        List<String> subjects = ticketManager.listSubjects();
         if (subjects.isEmpty()) {
             sendText(chatId, "Папка subjects/ пуста — предметов нет.");
             return;
@@ -167,7 +167,7 @@ public class TgDialog extends TelegramLongPollingBot {
     }
 
     private void showAuthors(long chatId, String subject) throws TelegramApiException {
-        List<String> authors = collection.listAuthors(subject);
+        List<String> authors = ticketManager.listAuthors(subject);
         if (authors.isEmpty()) {
             sendText(chatId, "В предмете " + subject + " нет файлов.");
             return;
@@ -177,8 +177,8 @@ public class TgDialog extends TelegramLongPollingBot {
         for (String author : authors) {
             InlineKeyboardButton btn = new InlineKeyboardButton();
 
-            double middleRating = collection.getMiddleRating(subject, author);
-            int countPeople = collection.getRatingCountPeople(subject, author);
+            double middleRating = ticketManager.getMiddleRating(subject, author);
+            int countPeople = ticketManager.getRatingCountPeople(subject, author);
             String ratingStr = (countPeople > 0) ? String.format(" ★%.1f (%d)", middleRating, countPeople) : "  ";
 
             btn.setText(author + ratingStr);
@@ -235,7 +235,7 @@ public class TgDialog extends TelegramLongPollingBot {
 
 
     private void sendFile(long chatId, String subject, String author) throws TelegramApiException {
-        File file = collection.getFile(subject, author);
+        File file = ticketManager.getFile(subject, author);
         if (file == null) {
             sendText(chatId, "Файл не найден: " + author);
             return;
@@ -289,9 +289,9 @@ public class TgDialog extends TelegramLongPollingBot {
         }
         subject = subject.trim();
 
-        if (!collection.listSubjects().contains(subject)) {
+        if (!ticketManager.listSubjects().contains(subject)) {
             sendText(chatId, "Предмета «" + subject + "» нет. Доступные: "
-                    + String.join(", ", collection.listSubjects()));
+                    + String.join(", ", ticketManager.listSubjects()));
             return;
         }
 
@@ -314,7 +314,7 @@ public class TgDialog extends TelegramLongPollingBot {
         try {
             org.telegram.telegrambots.meta.api.objects.File tgFile = execute(new GetFile(doc.getFileId()));
             try (InputStream in = downloadFileAsStream(tgFile.getFilePath())) {
-                collection.saveFile(subject, name, in);
+                ticketManager.saveFile(subject, name, in);
             }
             sendText(chatId, "Готово! Файл «" + name + "» добавлен в «" + subject + "».");
             showSubjects(chatId);
