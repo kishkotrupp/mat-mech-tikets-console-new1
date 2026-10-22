@@ -1,105 +1,98 @@
 package org.kishkotrupp;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DataBaseRating implements RatingStorage {
 
-    private final String dbUrl;
-    private static final String DB_FILE = "ratings.db";
+    private final Path filePath;
+    private static final String DB_FILE = "ratings.txt";
 
     public DataBaseRating() {
         this(DB_FILE);
     }
 
-    public DataBaseRating(String dbPath) {
-        // JDBC (Java Database Connectivity) требует, чтобы путь начинался с префикса.
-        this.dbUrl = "jdbc:sqlite:" + dbPath;
-        initDatabase();
-    }
-
-    private void initDatabase() {
-        String sql = """
-        CREATE TABLE IF NOT EXISTS ratings (
-            subject TEXT NOT NULL,
-            author TEXT NOT NULL,
-            user_id INTEGER NOT NULL,
-            score INTEGER NOT NULL CHECK(score BETWEEN 1 AND 10),
-            PRIMARY KEY (subject, author, user_id)
-        );
-        """;
-
-        try (Connection conn = DriverManager.getConnection(dbUrl);
-             // создаём инструмент для отправки простого запроса
-             Statement stmt = conn.createStatement()) {
-            // выполняем наш SQL (создание таблицы)
-            stmt.execute(sql);
-        } catch (SQLException e) {
-            throw new RuntimeException("Ошибка инициализации БД", e);
+    public DataBaseRating(String filePath) {
+        this.filePath = Paths.get(filePath);
+        try {
+            if (!Files.exists(this.filePath)) {
+                Files.createFile(this.filePath);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Не удалось создать файл для рейтинга", e);
         }
     }
 
+
     @Override
     public void saveRating(String subject, String author, long userId, int score) {
-        // вставить новую строку
-        // если такой ключ уже есть обнови score на то что мы пытались вставить в score
-        String sql = """
-        INSERT INTO ratings (subject, author, user_id, score)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(subject, author, user_id) DO UPDATE SET score = excluded.score
-        """;
+        try {
+            List<String> lines = Files.readAllLines(filePath, StandardCharsets.UTF_8);
+            List<String> newLines = new ArrayList<>();
 
-        try (Connection conn = DriverManager.getConnection(dbUrl);
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            // подставляем под вопросы
-            pstmt.setString(1, subject);
-            pstmt.setString(2, author);
-            pstmt.setLong(3, userId);
-            pstmt.setInt(4, score);
-            pstmt.executeUpdate(); // отправить в базу обновить
-        } catch (SQLException e) {
+            String prefix = subject + ";" + author + ";" + userId + ";";
+            boolean finded = false;
+
+            for (String line : lines) {
+                if (line.startsWith(prefix)) {
+                    newLines.add(prefix + score);
+                    finded = true;
+                } else {
+                    newLines.add(line);
+                }
+            }
+            if (!finded){
+                newLines.add(prefix + score);
+            }
+            Files.write(filePath, newLines, StandardCharsets.UTF_8);
+
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     @Override
     public double getMiddleRating(String subject, String author) {
-        //AVG(score) посчитай среднее арифметическое для колонки score
-        String sql = "SELECT AVG(score) FROM ratings WHERE subject = ? AND author = ?";
+        int count = 0;
+        int sum = 0;
 
-        try (Connection conn = DriverManager.getConnection(dbUrl);
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, subject);
-            pstmt.setString(2, author);
-            try (ResultSet rs = pstmt.executeQuery()) { // Прочитай и покажи. ResultSet - таблица с данными результатов
-                // на строку вниз и есть че то есть дай значение из колонки 1
-                if (rs.next()) return rs.getDouble(1);
+        try {
+            List<String> lines = Files.readAllLines(filePath, StandardCharsets.UTF_8);
+            for (String line : lines) {
+                String[] parts = line.split(";");
+                if (parts.length == 4 && parts[0].equals(subject) && parts[1].equals(author)) {
+                    sum += Integer.parseInt(parts[3]);
+                    count++;
+                }
             }
-        } catch (SQLException e) {
+        } catch (IOException | NumberFormatException e) {
             e.printStackTrace();
         }
-        return 0.0;
+
+        return count == 0 ? 0.0 : (double) sum / count;
     }
 
     @Override
     public int getRatingCountPeople(String subject, String author) {
-        // посчитай количество строк
-        String sql = "SELECT COUNT(*) FROM ratings WHERE subject = ? AND author = ?";
+        int count = 0;
 
-        try (Connection conn = DriverManager.getConnection(dbUrl);
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, subject);
-            pstmt.setString(2, author);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) return rs.getInt(1);
+        try {
+            List<String> lines = Files.readAllLines(filePath, StandardCharsets.UTF_8);
+            for (String line : lines) {
+                String[] parts = line.split(";");
+                if (parts.length == 4 && parts[0].equals(subject) && parts[1].equals(author)) {
+                    count++;
+                }
             }
-        } catch (SQLException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
-        return 0;
+
+        return count;
     }
 }
