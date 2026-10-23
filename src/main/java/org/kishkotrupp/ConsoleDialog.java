@@ -53,11 +53,13 @@ public class ConsoleDialog {
                 authors = ticketManager.listAuthors(subject);
                 io.println("Авторы: ");
                 for (String author : authors) {
-                    double middleRating = ticketManager.getMiddleRating(subject, author);
-                    int countPeople = ticketManager.getRatingCountPeople(subject, author);
-                    String ratingStr = (countPeople > 0) ? String.format(" ★%.1f (%d)", middleRating, countPeople) : "  ";
+                    if(author.substring(author.length() - 3).equals("txt")) {
+                        double middleRating = ticketManager.getMiddleRating(subject, author);
+                        int countPeople = ticketManager.getRatingCountPeople(subject, author);
+                        String ratingStr = (countPeople > 0) ? String.format(" ★%.1f (%d)", middleRating, countPeople) : "  ";
 
-                    io.println(author + ratingStr);
+                        io.println(author + ratingStr);
+                    }
                 }
                 continue;
             }
