@@ -1,96 +1,113 @@
 package org.kishkotrupp;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
 
-public class ConsoleDialog {
-    private final TicketManager ticketManager;
+public class ConsoleDialog implements Messenger{
+    private static final long CONSOLE_USER_ID = 1;
+
+
     private final IO io;
+    private final DialogService dialog;
+
+    private String menuText = null;
+    private List<String> menuLabels = new ArrayList<>();
+    private List<String> menuCommands = new ArrayList<>();
+    private boolean menuIsRating = false;
 
     public ConsoleDialog(TicketManager ticketManager, IO io){
-        this.ticketManager = ticketManager;
         this.io = io;
+        this.dialog = new DialogService(ticketManager, this);
     }
 
-    private void printHelp() {
-        io.println("=== СПРАВКА ===\n1) Введи название нужного предмета.\n" +
-                "2) Выбери нужного для тебя автора.\n" +
-                "3) Выучи билет и сдай экзамен на отлично!");
-    }
 
-    private boolean isHelp(String input) {
-        if (input.equalsIgnoreCase("\\help")) {
-            printHelp();
-            return true;
-        }
-        return false;
-    }
     public void run() {
-        io.println("Привет! Я - бот, созданный для упрощения подготовки к экзаменам на великом матмехе!\n" +
-                "Я помогу найти расписанные билеты!\n" +
-                "Введи '\\help' для справки!");
-
-        String subject = null;
-        List<String> authors = null;
+        dialog.handle(CONSOLE_USER_ID, DialogService.START);
 
         while (true) {
-            if (subject == null) {
-                List<String> subjects = ticketManager.listSubjects();
-                io.print("Какой предмет тебя интересует? ");
-                String input = io.readLine();
-                if (input == null) return; //ввод закончился
-                input = input.trim();
+            io.print(" ");
+            String input = io.readLine();
+            if (input == null) return;
+            input = input.trim();
 
-                if (isHelp(input)) continue;
-
-                if (!subjects.contains(input)) {
-                    io.println("Такого предмета нет.");
-                    continue;
-                }
-                subject = input;
-                authors = ticketManager.listAuthors(subject);
-                io.println("Авторы: ");
-                for (String author : authors) {
-                    if(author.substring(author.length() - 3).equals("txt")) {
-                        double middleRating = ticketManager.getMiddleRating(subject, author);
-                        int countPeople = ticketManager.getRatingCountPeople(subject, author);
-                        String ratingStr = (countPeople > 0) ? String.format(" ★%.1f (%d)", middleRating, countPeople) : "  ";
-
-                        io.println(author + ratingStr);
-                    }
-                }
+            if (input.isEmpty()) continue;
+            if (input.equals("\\help") || input.equalsIgnoreCase("/help")) {
+                dialog.handle(CONSOLE_USER_ID, DialogService.HELP);
+                repeatMenu();
                 continue;
             }
-            io.print("Выбери автора: ");
-            String author = io.readLine();
-            if (author == null) return;
-            author = author.trim();
-
-            if (isHelp(author)) continue;
-
-            if (!authors.contains(author)) {
-                io.println("Такого автора нет.");
-                continue;
-            }
-
-            String content = ticketManager.readContent(subject, author);
-            io.println("---- " + subject + " / " + author + " ----");
-            io.println(content);
-            io.println("------------------------------------");
-
-            long userId = 1;
-            io.print("оцени автора от 1 до 10: ");
-            String ratingInput = io.readLine();
-            int score = Integer.parseInt(ratingInput);
-            if (score >= 1 && score <= 10) {
-                ticketManager.saveRating(subject, author, userId, score);
+            String command = findCommand(input);
+            if (command != null) {
+                dialog.handle(CONSOLE_USER_ID, command);
+            } else if (input.startsWith("/")) {
+                dialog.handle(CONSOLE_USER_ID, input);
             } else {
-                io.println("Ошибка: оценка должна быть от 1 до 10!");
+                io.println("Некорректная команда. Введи название из списка или \\help для справки.");
+                repeatMenu();
             }
 
-            subject = null;
         }
+    }
+    private String findCommand(String input) {
+        for (int i = 0; i < menuLabels.size(); i++) {
+            // у авторов в названии есть рейтинг " ★4.5 (2)" — для сравнения его отбрасываем
+            String name = menuLabels.get(i).replaceAll(" ★.*$", "");
+            if (name.equalsIgnoreCase(input)) {
+                return menuCommands.get(i);
+            }
+        }
+        if (input.equalsIgnoreCase("назад") && menuCommands.contains(DialogService.BACK)) {
+            return DialogService.BACK;
+        }
+        return null;
+    }
+
+    private void printMenu() {
+        io.println(menuText);
+        if (menuIsRating) {
+            io.println("(введи число или «Пропустить»)");
+        } else {
+            for (String label : menuLabels) {
+                io.println("  - " + label);
+            }
+        }
+    }
+
+    private void repeatMenu() {
+        if (menuText != null) {
+            printMenu();
+        }
+    }
+    @Override
+    public void sendText(String text) {
+        io.println(text);
+    }
+
+    @Override
+    public void sendMenu(String text, List<String> labels, List<String> commands, int columns) {
+        this.menuText = text;
+        this.menuLabels = new ArrayList<>(labels);
+        this.menuCommands = new ArrayList<>(commands);
+        this.menuIsRating = columns > 1;
+        printMenu();
+    }
+
+    @Override
+    public void sendFile(String caption, File file) {
+        io.println("---- " + caption + " ----");
+        if (file.getName().toLowerCase().endsWith(".txt")) {
+            try {
+                io.println(Files.readString(file.toPath(), StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                io.println("Ошибка чтения файла: " + e.getMessage());
+            }
+        } else {
+            io.println("Файл лежит здесь: " + file.getPath() + " (в консоли показываются только .txt)");
+        }
+        io.println("------------------------------------");
     }
 }

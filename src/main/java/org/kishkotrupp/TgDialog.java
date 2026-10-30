@@ -13,37 +13,25 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 public class TgDialog extends TelegramLongPollingBot {
 
-    private static final String BACK_LABEL = "⬅️ Назад";
-    private static final String BACK_DATA = "back";
-    private static final String SUBJ_PREFIX = "subj:";
-    private static final String FILE_PREFIX = "file:";
-    private static final String RATE_PREFIX = "rate:";
-
-    private static final int MAX_NAME_LEN = 20;
-    private static final long MAX_UPLOAD_BYTES = 20L * 1024* 1024;
-    private static final Set<String> ALLOWED_EXT = Set.of("pdf", "doc", "docx", "txt");
-
+    private static final String BOT_USERNAME = "MathMechTicketsBot";
     private final String token;
-    private final String username;
     private final TicketManager ticketManager;
 
-    public TgDialog(String token, String username, TicketManager ticketManager) {
+    public TgDialog(String token, TicketManager ticketManager) {
         this.token = token;
-        this.username = username;
         this.ticketManager = ticketManager;
     }
 
     @Override
     public String getBotUsername() {
-        return username;
+        return BOT_USERNAME;
     }
 
     @Override
@@ -55,274 +43,127 @@ public class TgDialog extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
         try {
             if (update.hasMessage() && update.getMessage().hasText()) {
-                handleTextMessage(update);
-            } else if ((update.hasMessage() && update.getMessage().hasDocument())){
+                long chatId = update.getMessage().getChatId();
+                long userId = update.getMessage().getFrom().getId();
+                DialogService dialog = new DialogService(ticketManager, new TgMessenger(chatId));
+                dialog.handle(userId, update.getMessage().getText());
+            } else if ((update.hasMessage() && update.getMessage().hasDocument())) {
                 handleDocument(update);
-            } else if(update.hasCallbackQuery()){
-                handleCallbackQuery(update);
+            } else if (update.hasCallbackQuery()) {
+                long chatId = update.getCallbackQuery().getMessage().getChatId();
+                long userId = update.getCallbackQuery().getFrom().getId();
+                String data = update.getCallbackQuery().getData();
+
+                // без этого тг ругается
+                execute(new AnswerCallbackQuery(update.getCallbackQuery().getId()));
+
+                if (data != null) {
+                    DialogService dialog = new DialogService(ticketManager, new TgMessenger(chatId));
+                    dialog.handle(userId, data);
+                }
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void handleTextMessage(Update update) throws TelegramApiException {
-        long chatId = update.getMessage().getChatId();
-        String text = update.getMessage().getText().trim();
 
-        switch (text) {
-            case "/start":
-            case "/list":
-                sendWelcome(chatId);
-                showSubjects(chatId);
-                break;
-            case "/help":
-                showHelp(chatId);
-                break;
-            default:
-                sendText(chatId, "Напиши /start, чтобы начать, или /help для справки.");
-        }
+    private class TgMessenger implements Messenger {
+    private final long chatId;
+
+    TgMessenger(long chatId) {
+        this.chatId = chatId;
     }
 
-    private void handleCallbackQuery(Update update) throws TelegramApiException {
-        String data = update.getCallbackQuery().getData();
-        long chatId = update.getCallbackQuery().getMessage().getChatId();
-        // callbackId — это строка вида "4382910756893210472". Она уникальна для каждого нажатия.
-        String callbackId = update.getCallbackQuery().getId();
-        // получаем ID пользователя
-        long userId = update.getCallbackQuery().getFrom().getId();
-        // execute(...) — отправляем в Telegram, создаем объект «ответить на callback с ID X» (нажатие на кнопочку) она от этого пиликает и через 10 сек ругается если мы ничего не отправим
-        //execute(new AnswerCallbackQuery(callbackId));
-
-
-        if (data == null) return;
-
-        if (data.equals(BACK_DATA)) {
-            execute(new AnswerCallbackQuery(callbackId));
-            showSubjects(chatId);
-        } else if (data.startsWith(SUBJ_PREFIX)) {
-            execute(new AnswerCallbackQuery(callbackId));
-            String subject = data.substring(SUBJ_PREFIX.length());
-            showAuthors(chatId, subject);
-        } else if (data.startsWith(FILE_PREFIX)) {
-            execute(new AnswerCallbackQuery(callbackId));
-            String payload = data.substring(FILE_PREFIX.length());
-            int sep = payload.indexOf(':');
-            if (sep < 0) {
-                sendText(chatId, "Некорректные данные кнопки.");
-                return;
-            }
-            String subject = payload.substring(0, sep);
-            String author = payload.substring(sep + 1);
-
-            sendFile(chatId, subject, author);
-            sendRatingKeyboard(chatId, subject, author);
-        } else if (data.startsWith(RATE_PREFIX)) {
-            String payload = data.substring(RATE_PREFIX.length());
-            String[] parts = payload.split(":");
-            if (parts.length == 3) {
-                String subject = parts[0];
-                String author = parts[1];
-                int score = Integer.parseInt(parts[2]);
-
-                ticketManager.saveRating(subject, author, userId, score);
-
-                AnswerCallbackQuery answer = new AnswerCallbackQuery(callbackId);
-                answer.setText("Оценка сохранена!");
-                execute(answer);
-                showSubjects(chatId);
-            }
-        }
-    }
-
-
-    private void showSubjects(long chatId) throws TelegramApiException {
-        List<String> subjects = ticketManager.listSubjects();
-        if (subjects.isEmpty()) {
-            sendText(chatId, "Папка subjects/ пуста — предметов нет.");
-            return;
-        }
-
+    @Override
+    public void sendMenu(String text, List<String> labels, List<String> commands, int columns) {
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        for (String subject : subjects) {
+        List<InlineKeyboardButton> row = new ArrayList<>();
+
+        for (int i = 0; i < labels.size(); i++) {
             InlineKeyboardButton btn = new InlineKeyboardButton();
-            btn.setText(subject);
-            btn.setCallbackData(SUBJ_PREFIX + subject);
-            List<InlineKeyboardButton> row = new ArrayList<>();
+            btn.setText(labels.get(i));
+            btn.setCallbackData(commands.get(i));
             row.add(btn);
+
+            if (row.size() == columns) {
+                rows.add(row);
+                row = new ArrayList<>();
+            }
+        }
+        if (!row.isEmpty()) {
             rows.add(row);
         }
 
-        //Создаём объект разметки клавиатуры.
-        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
-        //кладем суда список списков кнопок
-        keyboard.setKeyboard(rows);
-
-        SendMessage msg = new SendMessage();
-        msg.setChatId(String.valueOf(chatId));
-        msg.setText("Выбери предмет:");
-        // Прикрепляем клавиатуру к сообщению
-        msg.setReplyMarkup(keyboard);
-        execute(msg);
-    }
-
-    private void showAuthors(long chatId, String subject) throws TelegramApiException {
-        List<String> authors = ticketManager.listAuthors(subject);
-        if (authors.isEmpty()) {
-            sendText(chatId, "В предмете " + subject + " нет файлов.");
-            return;
-        }
-
-        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-        for (String author : authors) {
-            InlineKeyboardButton btn = new InlineKeyboardButton();
-
-            double middleRating = ticketManager.getMiddleRating(subject, author);
-            int countPeople = ticketManager.getRatingCountPeople(subject, author);
-            String ratingStr = (countPeople > 0) ? String.format(" ★%.1f (%d)", middleRating, countPeople) : "  ";
-
-            btn.setText(author + ratingStr);
-            btn.setCallbackData(FILE_PREFIX + subject + ":" + author);
-            List<InlineKeyboardButton> row = new ArrayList<>();
-            row.add(btn);
-            rows.add(row);
-        }
-
-        InlineKeyboardButton back = new InlineKeyboardButton();
-        back.setText(BACK_LABEL);
-        back.setCallbackData(BACK_DATA);
-        List<InlineKeyboardButton> backRow = new ArrayList<>();
-        backRow.add(back);
-        rows.add(backRow);
-
         InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
         keyboard.setKeyboard(rows);
 
         SendMessage msg = new SendMessage();
         msg.setChatId(String.valueOf(chatId));
-        msg.setText("Авторы по предмету " + subject + ":");
+        msg.setText(text);
         msg.setReplyMarkup(keyboard);
-        execute(msg);
+        send(msg);
     }
 
-    private void sendRatingKeyboard(long chatId, String subject, String author) throws TelegramApiException {
-        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
-
-        List<InlineKeyboardButton> row1 = new ArrayList<>();
-        List<InlineKeyboardButton> row2 = new ArrayList<>();
-
-        for (int i = 1; i <= 10; i++) {
-            InlineKeyboardButton btn = new InlineKeyboardButton();
-            btn.setText(String.valueOf(i));
-            btn.setCallbackData(RATE_PREFIX + subject + ":" + author + ":" + i);
-
-            if (i <= 5) row1.add(btn);
-            else row2.add(btn);
-        }
-
-        rows.add(row1);
-        rows.add(row2);
-
-        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
-        keyboard.setKeyboard(rows);
-
-        SendMessage msg = new SendMessage();
-        msg.setChatId(String.valueOf(chatId));
-        msg.setText("Оцени автора " + author + " от 1 до 10:");
-        msg.setReplyMarkup(keyboard);
-        execute(msg);
-    }
-
-
-    private void sendFile(long chatId, String subject, String author) throws TelegramApiException {
-        File file = ticketManager.getFile(subject, author);
-        if (file == null) {
-            sendText(chatId, "Файл не найден: " + author);
-            return;
-        }
-        if (file.length() > 50L * 1024 * 1024) {
-            sendText(chatId, "Файл больше 50 МБ — Telegram не пропустит.");
+    @Override
+    public void sendFile(String caption, File file) {
+        if (file.length() > 20L * 1024 * 1024) {
+            sendText("Файл больше 20 МБ Telegram не пропустит.");
             return;
         }
 
         SendDocument doc = new SendDocument();
         doc.setChatId(String.valueOf(chatId));
         doc.setDocument(new InputFile(file));
-        doc.setCaption(subject + " / " + author);
-        execute(doc);
+        doc.setCaption(caption);
+        try {
+            execute(doc);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
     }
 
-    private void sendWelcome(long chatId) throws TelegramApiException {
-        sendText(chatId,
-                "Привет! Я бот для подготовки к экзаменам на матмехе.\n" +
-                        "Выбери предмет, потом файл — я пришлю его тебе.\n" +
-                        "Нажми /help для справки.\n" +
-                "Чтобы добавить файл отправь его как документ и в подписи напиши название предмета. Макс. 20 МБ, имя до 64 символов, форматы: pdf, doc, docx, txt");
-    }
-
-    private void showHelp(long chatId) throws TelegramApiException {
-        sendText(chatId,
-                "=== СПРАВКА ===\n" +
-                        "1) /start — показать список предметов.\n" +
-                        "2) Нажми на предмет — увидишь файлы.\n" +
-                        "3) Нажми на файл — я его пришлю.\n" +
-                        "4) Кнопка «Назад» возвращает к списку предметов.\n" +
-                "5) Чтобы добавить файл отправь его как документ и в подписи напиши название предмета. Макс. 20 МБ, имя до 64 символов, форматы: pdf, doc, docx, txt");
-    }
-
-    private void sendText(long chatId, String text) throws TelegramApiException {
+    @Override
+    public void sendText(String text) {
         SendMessage msg = new SendMessage();
         msg.setChatId(String.valueOf(chatId));
         msg.setText(text);
-        execute(msg);
+        send(msg);
     }
+
+    private void send(SendMessage msg) {
+        try {
+            execute(msg);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+}
 
     private void handleDocument(Update update) throws TelegramApiException {
         long chatId = update.getMessage().getChatId();
         Document doc = update.getMessage().getDocument();
         String subject = update.getMessage().getCaption();
         String name = doc.getFileName();
+        Long size = doc.getFileSize() == null ? 0 : doc.getFileSize().longValue();
 
-        if (subject == null || subject.isBlank()) {
-            sendText(chatId, "Напиши название предмета в подписи файла");
-            return;
-        }
-        subject = subject.trim();
+        TgMessenger messenger = new TgMessenger(chatId);
+        DialogService dialog = new DialogService(ticketManager, messenger);
 
-        if (!ticketManager.listSubjects().contains(subject)) {
-            sendText(chatId, "Предмета «" + subject + "» нет. Доступные: "
-                    + String.join(", ", ticketManager.listSubjects()));
-            return;
-        }
-
-        if (name == null || name.length() > MAX_NAME_LEN) {
-            sendText(chatId, "Имя файла должно быть не длиннее " + MAX_NAME_LEN + " символов.");
-            return;
-        }
-
-        int dot = name.lastIndexOf('.');
-        String ext = dot < 0 ? "" : name.substring(dot + 1).toLowerCase();
-        if (!ALLOWED_EXT.contains(ext)) {
-            sendText(chatId, "Формат не подходит. Разрешены: " + String.join(", ", ALLOWED_EXT));
-            return;
-        }
-        if (doc.getFileSize() != null && doc.getFileSize() > MAX_UPLOAD_BYTES) {
-            sendText(chatId, "Файл больше 20 МБ.");
+        if (!dialog.checkUpload(subject, name, size)) {
             return;
         }
 
         try {
             org.telegram.telegrambots.meta.api.objects.File tgFile = execute(new GetFile(doc.getFileId()));
             try (InputStream in = downloadFileAsStream(tgFile.getFilePath())) {
-                ticketManager.saveFile(subject, name, in);
+                dialog.saveUpload(subject, name, in);
             }
-            sendText(chatId, "Готово! Файл «" + name + "» добавлен в «" + subject + "».");
-            showSubjects(chatId);
-        } catch (FileAlreadyExistsException e) {
-            sendText(chatId, "Файл с таким именем уже есть. Переименуй и отправь снова.");
-        } catch (java.io.IOException e) {
+
+        } catch (IOException e) {
             e.printStackTrace();
-            sendText(chatId, "Не получилось сохранить файл.");
+            messenger.sendText("Не получилось сохранить файл.");
         }
     }
 
