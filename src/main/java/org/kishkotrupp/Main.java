@@ -8,9 +8,6 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
 public class Main {
 
-    private static final String BOT_USERNAME = "MathMechTicketsBot";
-    private static final String SUBJECTS_DIR = "subjects";
-
     public static void main(String[] args) throws TelegramApiException {
         //russ out
         System.setOut(new PrintStream(System.out, true, StandardCharsets.UTF_8));
@@ -18,7 +15,7 @@ public class Main {
         //-------
 
 
-        TicketStorage ticketStorage = new FileTicketStorage(SUBJECTS_DIR);
+        TicketStorage ticketStorage = new FileTicketStorage();
         RatingStorage ratingStorage = new DataBaseRating();
         TicketManager ticketManager = new TicketManager(ticketStorage, ratingStorage);
 
@@ -42,13 +39,13 @@ public class Main {
             System.exit(1);
         }
 
-        TgDialog bot = new TgDialog(botToken, BOT_USERNAME, ticketManager);
+        TgDialog bot = new TgDialog(botToken, ticketManager);
 
         // Регистрируем бота в Telegram API — с этого момента он принимает updates
         TelegramBotsApi api = new TelegramBotsApi(DefaultBotSession.class);
         api.registerBot(bot);
 
-        System.out.println("Бот запущен: @" + BOT_USERNAME);
+        System.out.println("Бот запущен: @" + bot.getBotUsername());
     }
 
     private static void startConsole(TicketManager ticketManager) {

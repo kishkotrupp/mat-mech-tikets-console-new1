@@ -8,8 +8,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FileTicketStorage implements TicketStorage {
+    private static final String DEFAULT_DIR = "subjects";
 
     private final File baseDir;
+
+    public FileTicketStorage() {
+        this(DEFAULT_DIR);
+    }
 
     public FileTicketStorage(String dirPath) {
         this.baseDir = new File(dirPath);
