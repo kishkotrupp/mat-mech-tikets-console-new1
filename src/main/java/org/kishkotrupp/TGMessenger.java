@@ -79,4 +79,22 @@ public class TGMessenger implements Messenger {
     public boolean supportsFile(String fileName) {
         return true;
     }
+
+    @Override
+    public void sendLectures(List<LectureStorage> lectures) {
+        StringBuilder sb = new StringBuilder("<b>Доступные лекции:</b>\n\n");
+        for (LectureStorage lecture : lectures) {
+            // Формируем HTML-ссылку
+            sb.append("• <a href=\"").append(lecture.getUrl()).append("\">")
+                    .append(lecture.getTitle()).append("</a>\n");
+        }
+
+        SendMessage msg = new SendMessage(String.valueOf(chatId), sb.toString());
+        msg.setParseMode("HTML"); // <-- ВАЖНО: включаем HTML-разметку
+        try {
+            bot.execute(msg);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
 }

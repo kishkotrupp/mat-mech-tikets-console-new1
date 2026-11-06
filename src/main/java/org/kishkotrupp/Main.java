@@ -18,28 +18,29 @@ public class Main {
         TicketStorage ticketStorage = new FileTicketStorage();
         RatingStorage ratingStorage = new DataBaseRating();
         TicketManager ticketManager = new TicketManager(ticketStorage, ratingStorage);
+        LectureService lectureService = new LectureService();
 
         if (args.length == 0){
-            startConsole(ticketManager);
+            startConsole(ticketManager, lectureService);
         }else if (args[0].equalsIgnoreCase("TG")){
-            startTgBot(ticketManager);
+            startTgBot(ticketManager, lectureService);
             keepAlive(); // Блокируем поток, чтобы бот работал
         }else if (args[0].equalsIgnoreCase("BOTH")){
-            startTgBot(ticketManager);
-            startConsole(ticketManager);
+            startTgBot(ticketManager, lectureService);
+            startConsole(ticketManager, lectureService);
         }
 
 
     }
 
-    private static void startTgBot(TicketManager ticketManager) throws TelegramApiException {
+    private static void startTgBot(TicketManager ticketManager, LectureService lectureService) throws TelegramApiException {
         String botToken = System.getenv("TG_BOT_TOKEN");
         if (botToken == null || botToken.isBlank()) {
             System.err.println("Не задан TG_BOT_TOKEN в переменных окружения.");
             System.exit(1);
         }
 
-        TgDialog bot = new TgDialog(botToken, ticketManager);
+        TgDialog bot = new TgDialog(botToken, ticketManager, lectureService);
 
         // Регистрируем бота в Telegram API — с этого момента он принимает updates
         TelegramBotsApi api = new TelegramBotsApi(DefaultBotSession.class);
@@ -48,9 +49,9 @@ public class Main {
         System.out.println("Бот запущен: @" + bot.getBotUsername());
     }
 
-    private static void startConsole(TicketManager ticketManager) {
+    private static void startConsole(TicketManager ticketManager, LectureService lectureService) {
         IO io = new ConsoleIO();
-        new ConsoleDialog(ticketManager, io).run();
+        new ConsoleDialog(ticketManager, io, lectureService).run();
     }
 
     private static void keepAlive() {

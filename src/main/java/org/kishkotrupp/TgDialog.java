@@ -1,6 +1,7 @@
 package org.kishkotrupp;
 
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -22,16 +23,18 @@ public class TgDialog extends TelegramLongPollingBot {
     private final String token;
     private final String username;
     private final TicketManager ticketManager;
+    private final LectureService lectureService;
     private static final String BOT_USERNAME = "MathMechTicketsBot";
 
-    public TgDialog(String token, String username, TicketManager ticketManager) {
+    public TgDialog(String token, String username, TicketManager ticketManager, LectureService lectureService) {
         this.token = token;
         this.username = username;
         this.ticketManager = ticketManager;
+        this.lectureService = lectureService;
     }
 
-    public TgDialog(String token, TicketManager ticketManager) {
-        this(token, BOT_USERNAME, ticketManager);
+    public TgDialog(String token, TicketManager ticketManager, LectureService lectureService) {
+        this(token, BOT_USERNAME, ticketManager, lectureService);
     }
 
     @Override
@@ -64,7 +67,7 @@ public class TgDialog extends TelegramLongPollingBot {
         String text = update.getMessage().getText().trim();
 
         Messenger messenger = new TGMessenger(this, chatId);
-        DialogService dialog = new DialogService(ticketManager, messenger);
+        DialogService dialog = new DialogService(ticketManager, messenger, lectureService);
         dialog.handle(chatId, update.getMessage().getText());
     }
 
@@ -76,13 +79,16 @@ public class TgDialog extends TelegramLongPollingBot {
         // получаем ID пользователя
         long userId = update.getCallbackQuery().getFrom().getId();
         // execute(...) — отправляем в Telegram, создаем объект «ответить на callback с ID X» (нажатие на кнопочку) она от этого пиликает и через 10 сек ругается если мы ничего не отправим
-        //execute(new AnswerCallbackQuery(callbackId));
-
+        try {
+            execute(new AnswerCallbackQuery(callbackId));
+        } catch (TelegramApiException e) {
+            // Игнорируем ошибку, если callback устарел (query is too old)
+        }
 
         if (data == null) return;
 
         Messenger messenger = new TGMessenger(this, chatId);
-        DialogService dialog = new DialogService(ticketManager, messenger);
+        DialogService dialog = new DialogService(ticketManager, messenger, lectureService);
         dialog.handle(userId, data);
     }
 
@@ -94,7 +100,7 @@ public class TgDialog extends TelegramLongPollingBot {
         long size = doc.getFileSize() != null ? doc.getFileSize() : 0;
 
         Messenger messenger = new TGMessenger(this, chatId);
-        DialogService dialog = new DialogService(ticketManager, messenger);
+        DialogService dialog = new DialogService(ticketManager, messenger, lectureService);
 
         // Проверяем файл через DialogService (он сам напишет ошибку, если что-то не так)
         if (!dialog.checkUpload(subject, name, size)) {

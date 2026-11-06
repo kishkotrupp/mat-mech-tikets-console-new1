@@ -67,4 +67,13 @@ public class ConsoleMessenger implements Messenger{
 
         return input;
     }
+
+    @Override
+    public void sendLectures(List<LectureStorage> lectures) {
+        io.println("Доступные лекции:");
+        for (LectureStorage lecture : lectures) {
+            io.println("  - " + lecture.getTitle());
+            io.println("    " + lecture.getUrl());
+        }
+    }
 }

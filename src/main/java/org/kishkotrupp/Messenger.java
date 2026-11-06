@@ -9,4 +9,6 @@ public interface Messenger {
     void sendMenu(String text, List<String> labels, List<String> commands, int columns);
     void sendFile(String caption, File file);
     boolean supportsFile(String fileName);
+
+    void sendLectures(List<LectureStorage> lectures);
 }

@@ -22,6 +22,8 @@ dependencies {
     testImplementation 'org.mockito:mockito-core:5.11.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     implementation 'org.xerial:sqlite-jdbc:3.46.0.0'
+    // for Api
+    implementation 'org.jsoup:jsoup:1.17.2'
 }
 
 java {
@@ -37,14 +39,3 @@ test {
     useJUnitPlatform()
 }
 
-jar {
-    manifest {
-        attributes 'Main-Class': 'org.kishkotrupp.Main'
-    }
-    from {
-        configurations.runtimeClasspath.collect {
-            it.isDirectory() ? it : zipTree(it)
-        }
-    }
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
