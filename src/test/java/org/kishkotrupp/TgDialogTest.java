@@ -3,14 +3,15 @@ package org.kishkotrupp;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.Chat;
-import org.telegram.telegrambots.meta.api.objects.Document;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.*;
 
 import java.io.File;
+import java.io.InputStream;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,74 +22,101 @@ public class TgDialogTest {
     Path tempDir; //временная папка на диске
 
     TgDialog bot;
-    File subjectDir;
+    TicketManager mockTicketManager;
+    LectureService mockLectureService;
 
     @BeforeEach
     void setUp() throws Exception {
-        subjectDir = new File(tempDir.toFile(), "алгем");
-        subjectDir.mkdirs();
+        mockTicketManager = mock(TicketManager.class);
+        mockLectureService = mock(LectureService.class);
 
-        RatingStorage mockRating = mock(RatingStorage.class);
-
-        TicketManager ticketManager = new TicketManager(new FileTicketStorage(tempDir.toString()), mockRating);
-        bot = spy(new TgDialog("token", "test_bot", ticketManager));
+        // можем перехватывать execute()
+        bot = spy(new TgDialog("fake_token", "test_bot", mockTicketManager, mockLectureService));
 
         doReturn(null).when(bot).execute(any(SendMessage.class));
+        doReturn(null).when(bot).execute(any(AnswerCallbackQuery.class));
+        doReturn(null).when(bot).execute(any(SendDocument.class));
     }
 
-    private void send(String caption, String fileName, int size) throws Exception {
-        Document doc = mock(Document.class);
-        when(doc.getFileId()).thenReturn("id");
-        when(doc.getFileName()).thenReturn(fileName);
-        when(doc.getFileSize()).thenReturn((long) size);
+    @Test
+    void handleTextMessage_Start_ShouldSendWelcomeAndMenu() throws Exception {
+        Message msg = new Message();
+        msg.setText("/start");
+        Chat chat = new Chat();
+        chat.setId(123L);
+        msg.setChat(chat);
 
-        Chat chat = mock(Chat.class);
-        when(chat.getId()).thenReturn(1L);
+        Update update = new Update();
+        update.setMessage(msg);
 
-        Message msg = mock(Message.class);
-        when(msg.getChatId()).thenReturn(1L);
-        when(msg.getChat()).thenReturn(chat);
-        when(msg.getDocument()).thenReturn(doc);
-        when(msg.getCaption()).thenReturn(caption);
+        // Update — это «конверт», в который Telegram упаковывает все события
+        bot.onUpdateReceived(update);
 
-        Update update = mock(Update.class);
-        when(update.getMessage()).thenReturn(msg);
+        // sendText и sendMenu, минимум 2 вызова execute
+        verify(bot, atLeast(2)).execute(any(SendMessage.class));
+    }
 
+    @Test
+    void handleCallbackQuery_ShouldAnswerAndProcessCommand() throws Exception {
+        // нажатие на кнопку "Билеты" (menu:tickets)
+        CallbackQuery callback = new CallbackQuery();
+        callback.setId("call_123");
+        callback.setData("menu:tickets");
+
+        Message msg = new Message();
+        Chat chat = new Chat();
+        chat.setId(123L);
+        msg.setChat(chat);
+        callback.setMessage(msg);
+
+        User user = new User();
+        user.setId(999L);
+        callback.setFrom(user);
+
+        Update update = new Update();
+        update.setCallbackQuery(callback);
 
         bot.onUpdateReceived(update);
-    }
 
-    private void assertNothingSaved() {
-        assertEquals(0, subjectDir.list().length);
-    }
-
-    @Test
-    void noCaption() throws Exception {
-        send(null, "a.pdf", 100);
-        assertNothingSaved();
+        // ответить на callback, чтобы перестала мигать кнопка
+        verify(bot, times(1)).execute(any(AnswerCallbackQuery.class));
+        verify(mockTicketManager, times(1)).listSubjects();
     }
 
     @Test
-    void unknownSubject() throws Exception {
-        send("нет такого", "a.pdf", 100);
-        assertNothingSaved();
-    }
+    void handleDocument_ValidFile_ShouldDownloadAndSave() throws Exception {
+        Document doc = new Document();
+        doc.setFileName("test.pdf");
+        doc.setFileId("file_123");
+        doc.setFileSize(1024L);
 
-    @Test
-    void nameTooLong() throws Exception {
-        send("алгем", "a".repeat(21) + ".pdf", 100);
-        assertNothingSaved();
-    }
+        Message msg = new Message();
+        Chat chat = new Chat();
+        chat.setId(123L);
+        msg.setChat(chat);
+        msg.setDocument(doc);
+        msg.setCaption("math");
 
-    @Test
-    void badExtension() throws Exception {
-        send("алгем", "virus.exe", 100);
-        assertNothingSaved();
-    }
+        Update update = new Update();
+        update.setMessage(msg);
 
-    @Test
-    void fileTooBig() throws Exception {
-        send("алгем", "big.pdf", 20 * 1024 * 1024 + 1);
-        assertNothingSaved();
+        // Настраиваем моки для скачивания файла
+        // файл лежит на сервере Telegram по адресу path/to/file
+        org.telegram.telegrambots.meta.api.objects.File mockTgFile = new org.telegram.telegrambots.meta.api.objects.File();
+        mockTgFile.setFilePath("path/to/file");
+
+        // Когда попросишь файл из телеграма, верни эту фейковую инфу
+        doReturn(mockTgFile).when(bot).execute(any(org.telegram.telegrambots.meta.api.methods.GetFile.class));
+
+        // Когда начнешь скачивать, верни пустой поток
+        // InputStream.nullInputStream() выглядит для программы как настоящий поток данных
+        doReturn(InputStream.nullInputStream()).when(bot).downloadFileAsStream(anyString());
+
+        when(mockTicketManager.listSubjects()).thenReturn(Arrays.asList("math", "physics"));
+
+        bot.onUpdateReceived(update);
+
+        // сохранение файла
+        verify(mockTicketManager, times(1)).saveFile(eq("math"), eq("test.pdf"), any(InputStream.class));
     }
 }

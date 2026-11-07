@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 public class DialogService {
@@ -141,7 +142,7 @@ public class DialogService {
             if (messenger.supportsFile(author)) {
                 double middleRating = ticketManager.getMiddleRating(subject, author);
                 int countPeople = ticketManager.getRatingCountPeople(subject, author);
-                String ratingStr = (countPeople > 0) ? String.format(" ★%.1f (%d)", middleRating, countPeople) : "  ";
+                String ratingStr = (countPeople > 0) ? String.format(Locale.US," ★%.1f (%d)", middleRating, countPeople) : "  ";
 
                 String label = author + ratingStr;
                 labels.add(label);

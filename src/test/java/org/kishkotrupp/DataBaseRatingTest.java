@@ -14,12 +14,12 @@ public class DataBaseRatingTest {
     Path tempDir;
 
     DataBaseRating ratingStorage;
+    Path ratingsFile;
 
     @BeforeEach
     void setUp() {
-        // Создаём базу во временной папке, чтобы не мусорить в проекте
-        String dbPath = tempDir.resolve("test_ratings.db").toString();
-        ratingStorage = new DataBaseRating(dbPath);
+        ratingsFile = tempDir.resolve("test_ratings.txt");
+        ratingStorage = new DataBaseRating(ratingsFile.toString());
     }
 
     @Test
