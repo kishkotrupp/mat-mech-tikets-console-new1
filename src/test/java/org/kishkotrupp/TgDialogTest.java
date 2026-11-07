@@ -3,17 +3,20 @@ package org.kishkotrupp;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import org.telegram.telegrambots.meta.api.objects.File;
+import org.telegram.telegrambots.meta.api.methods.GetFile;
+
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 
-import java.io.File;
+
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.Arrays;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -102,11 +105,11 @@ public class TgDialogTest {
 
         // Настраиваем моки для скачивания файла
         // файл лежит на сервере Telegram по адресу path/to/file
-        org.telegram.telegrambots.meta.api.objects.File mockTgFile = new org.telegram.telegrambots.meta.api.objects.File();
+        File mockTgFile = new File();
         mockTgFile.setFilePath("path/to/file");
 
         // Когда попросишь файл из телеграма, верни эту фейковую инфу
-        doReturn(mockTgFile).when(bot).execute(any(org.telegram.telegrambots.meta.api.methods.GetFile.class));
+        doReturn(mockTgFile).when(bot).execute(any(GetFile.class));
 
         // Когда начнешь скачивать, верни пустой поток
         // InputStream.nullInputStream() выглядит для программы как настоящий поток данных
