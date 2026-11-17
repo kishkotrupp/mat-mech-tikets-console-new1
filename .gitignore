@@ -7,10 +7,7 @@ build/
 .kotlin
 
 ### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
+.idea/
 *.iws
 *.iml
 *.ipr
@@ -192,4 +189,4 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
->>>>>>> d2d1652e4fec38147d9327a349eeea7a19b9c35b
+
