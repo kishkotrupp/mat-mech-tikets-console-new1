@@ -1,10 +1,5 @@
 package org.kishkotrupp;
 
-import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,30 +10,6 @@ import java.util.Locale;
 import java.util.Set;
 
 public class DialogService {
-
-
-    public enum Command {
-        START("/start"), LIST("/list"), HELP("/help"), BACK("back"),
-        MENU_TICKETS("menu:tickets"), MENU_LECTURES("menu:lectures"),
-        SUBJ("subj:"), FILE("file:"), RATE("rate:");
-
-        private final String value;
-
-        Command(String value) {
-            this.value = value;
-        }
-        public String getValue() {
-            return value;
-        }
-
-        // Метод для получения команды из строки
-        public static Command fromString(String text) {
-            for (Command cmd : values()) {
-                if (text.startsWith(cmd.value)) return cmd;
-            }
-            return null; // Или бросаем исключение
-        }
-    }
 
     private static final int MAX_NAME_LEN = 20;
     private static final long MAX_UPLOAD_BYTES = 20L * 1024* 1024;

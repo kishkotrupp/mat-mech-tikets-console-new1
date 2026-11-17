@@ -1,5 +1,4 @@
 package org.kishkotrupp;
-import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
 import java.util.List;
