@@ -19,7 +19,7 @@ public class DialogService {
 
     public enum Command {
         START("/start"), LIST("/list"), HELP("/help"), BACK("back"),
-        MENU_TICKETS("menu:tickets"), MENU_LECTURES("menu:lectures"),
+        MENU_TICKETS("menu:tickets"), MENU_LECTURES("menu:lectures"), LECTURES_VERNIKOV("lec:vernikov"), LECTURES_SHCHERBAKOVA("lec:shcherbakova"),
         SUBJ("subj:"), FILE("file:"), RATE("rate:");
 
         private final String value;
@@ -61,11 +61,13 @@ public class DialogService {
     private final TicketManager ticketManager;
     private final Messenger messenger;
     private final LectureService lectureService;
+    private final LectureServiceDM lectureServiceDM;
 
-    public DialogService(TicketManager ticketManager, Messenger messenger, LectureService lectureService) {
+    public DialogService(TicketManager ticketManager, Messenger messenger, LectureService lectureService, LectureServiceDM lectureServiceDM) {
         this.ticketManager = ticketManager;
         this.messenger = messenger;
         this.lectureService = lectureService;
+        this.lectureServiceDM = lectureServiceDM;
     }
 
 
@@ -90,6 +92,8 @@ public class DialogService {
             case BACK -> showMainMenu();
             case MENU_TICKETS -> showSubjects();
             case MENU_LECTURES -> showLectures();
+            case LECTURES_VERNIKOV -> showVernikovLectures();
+            case LECTURES_SHCHERBAKOVA -> showShcherbakovaLectures();
             case SUBJ -> showAuthors(payload);
             case FILE -> openFile(payload);
             case RATE -> rate(userId, payload);
@@ -103,7 +107,29 @@ public class DialogService {
     }
 
     private void showLectures() {
+        List<String> labels = List.of(
+                "Алгебра и геометрия (Верников)",
+                "Дискретная математика (Щербакова)",
+                "⬅️ Назад"
+        );
+        List<String> commands = List.of(
+                Command.LECTURES_VERNIKOV.getValue(),
+                Command.LECTURES_SHCHERBAKOVA.getValue(),
+                Command.BACK.getValue()
+        );
+        messenger.sendMenu("Выбери раздел лекций:", labels, commands, 1);
+    }
+
+    private void showVernikovLectures() {
         List<LectureStorage> lectures = lectureService.fetchLectures();
+        if (lectures.isEmpty()) {
+            messenger.sendText("Не удалось загрузить лекции. Попробуй позже.");
+        } else {
+            messenger.sendLectures(lectures);
+        }
+    }
+    private void showShcherbakovaLectures() {
+        List<LectureStorage> lectures = lectureServiceDM.fetchLectures();
         if (lectures.isEmpty()) {
             messenger.sendText("Не удалось загрузить лекции. Попробуй позже.");
         } else {

@@ -24,17 +24,19 @@ public class TgDialog extends TelegramLongPollingBot {
     private final String username;
     private final TicketManager ticketManager;
     private final LectureService lectureService;
+    private final LectureServiceDM lectureServiceDM;
     private static final String BOT_USERNAME = "MathMechTicketsBot";
 
-    public TgDialog(String token, String username, TicketManager ticketManager, LectureService lectureService) {
+    public TgDialog(String token, String username, TicketManager ticketManager, LectureService lectureService, LectureServiceDM lectureServiceDM) {
         this.token = token;
         this.username = username;
         this.ticketManager = ticketManager;
         this.lectureService = lectureService;
+        this.lectureServiceDM = lectureServiceDM;
     }
 
-    public TgDialog(String token, TicketManager ticketManager, LectureService lectureService) {
-        this(token, BOT_USERNAME, ticketManager, lectureService);
+    public TgDialog(String token, TicketManager ticketManager, LectureService lectureService, LectureServiceDM lectureServiceDM) {
+        this(token, BOT_USERNAME, ticketManager, lectureService, lectureServiceDM);
     }
 
     @Override
@@ -67,7 +69,7 @@ public class TgDialog extends TelegramLongPollingBot {
         String text = update.getMessage().getText().trim();
 
         Messenger messenger = new TGMessenger(this, chatId);
-        DialogService dialog = new DialogService(ticketManager, messenger, lectureService);
+        DialogService dialog = new DialogService(ticketManager, messenger, lectureService, lectureServiceDM);
         dialog.handle(chatId, update.getMessage().getText());
     }
 
@@ -88,7 +90,7 @@ public class TgDialog extends TelegramLongPollingBot {
         if (data == null) return;
 
         Messenger messenger = new TGMessenger(this, chatId);
-        DialogService dialog = new DialogService(ticketManager, messenger, lectureService);
+        DialogService dialog = new DialogService(ticketManager, messenger, lectureService, lectureServiceDM);
         dialog.handle(userId, data);
     }
 
@@ -100,7 +102,7 @@ public class TgDialog extends TelegramLongPollingBot {
         long size = doc.getFileSize() != null ? doc.getFileSize() : 0;
 
         Messenger messenger = new TGMessenger(this, chatId);
-        DialogService dialog = new DialogService(ticketManager, messenger, lectureService);
+        DialogService dialog = new DialogService(ticketManager, messenger, lectureService, lectureServiceDM);
 
         // Проверяем файл через DialogService (он сам напишет ошибку, если что-то не так)
         if (!dialog.checkUpload(subject, name, size)) {

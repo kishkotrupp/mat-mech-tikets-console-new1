@@ -8,18 +8,19 @@ import java.util.List;
 public class ConsoleDialog {
     private final TicketManager ticketManager;
     private final LectureService lectureService;
+    private final LectureServiceDM lectureServiceDM;
     private final IO io;
 
-    public ConsoleDialog(TicketManager ticketManager, IO io, LectureService lectureService){
+    public ConsoleDialog(TicketManager ticketManager, IO io, LectureService lectureService, LectureServiceDM lectureServiceDM){
         this.ticketManager = ticketManager;
         this.io = io;
         this.lectureService = lectureService;
+        this.lectureServiceDM = lectureServiceDM;
     }
 
     public void run() {
         ConsoleMessenger messenger = new ConsoleMessenger(io);
-        LectureService lectureService = new LectureService();
-        DialogService dialog = new DialogService(ticketManager, messenger, lectureService);
+        DialogService dialog = new DialogService(ticketManager, messenger, lectureService, lectureServiceDM);
 
         io.println("Привет! Я бот. Введи /start для начала или /help для справки.");
 
