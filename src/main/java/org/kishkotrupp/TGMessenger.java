@@ -81,9 +81,9 @@ public class TGMessenger implements Messenger {
     }
 
     @Override
-    public void sendLectures(List<LectureStorage> lectures) {
+    public void sendLectures(List<LectureMeta> lectures) {
         StringBuilder sb = new StringBuilder("<b>Доступные лекции:</b>\n\n");
-        for (LectureStorage lecture : lectures) {
+        for (LectureMeta lecture : lectures) {
             // Формируем HTML-ссылку
             sb.append("• <a href=\"").append(lecture.getUrl()).append("\">")
                     .append(lecture.getTitle()).append("</a>\n");

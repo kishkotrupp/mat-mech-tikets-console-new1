@@ -1,10 +1,10 @@
 package org.kishkotrupp;
 
-public class LectureStorage {
+public class LectureMeta {
     private final String title;
     private final String url;
 
-    public LectureStorage(String title, String url) {
+    public LectureMeta(String title, String url) {
         this.title = title;
         this.url = url;
     }

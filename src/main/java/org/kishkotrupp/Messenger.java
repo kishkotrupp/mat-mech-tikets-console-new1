@@ -9,5 +9,5 @@ public interface Messenger {
     void sendFile(String caption, File file);
     boolean supportsFile(String fileName);
 
-    void sendLectures(List<LectureStorage> lectures);
+    void sendLectures(List<LectureMeta> lectures);
 }

@@ -42,6 +42,13 @@ public class DialogService {
 
     public void handle(long userId, String command) {
         command = command.trim();
+
+        if (command.startsWith("lect:")) {
+            String sourceName = command.substring("lect:".length());
+            showLecturesFromSource(sourceName);
+            return;
+        }
+        
         Command cmd = Command.fromString(command);
 
         if (cmd == null) {
@@ -60,10 +67,40 @@ public class DialogService {
             case HELP -> messenger.sendText(HELP_TEXT);
             case BACK -> showMainMenu();
             case MENU_TICKETS -> showSubjects();
-            case MENU_LECTURES -> showLectures();
+            case MENU_LECTURES -> showLectureSources();
             case SUBJ -> showAuthors(payload);
             case FILE -> openFile(payload);
             case RATE -> rate(userId, payload);
+        }
+    }
+
+    private void showLectureSources() {
+        List<LectureSource> sources = lectureService.getAvailableSources();
+
+        List<String> labels = new ArrayList<>();
+        List<String> commands = new ArrayList<>();
+
+        for (LectureSource source : sources) {
+            labels.add(source.getSourceName());
+            // Используем префикс "lect:" + название сайта для callback-кнопки
+            commands.add("lect:" + source.getSourceName());
+        }
+
+        labels.add("⬅️ Назад");
+        commands.add(Command.BACK.getValue());
+
+        messenger.sendMenu("Выбери источник лекций:", labels, commands, 1);
+    }
+
+    private void showLecturesFromSource(String sourceName) {
+        messenger.sendText("Загружаю лекции... Пожалуйста, подожди.");
+
+        List<LectureMeta> lectures = lectureService.fetchLecturesForSource(sourceName);
+
+        if (lectures.isEmpty()) {
+            messenger.sendText("Не удалось загрузить лекции. Попробуй позже.");
+        } else {
+            messenger.sendLectures(lectures);
         }
     }
 
@@ -71,15 +108,6 @@ public class DialogService {
         List<String> labels = List.of("Просмотр билетов", "Просмотр лекций");
         List<String> commands = List.of(Command.MENU_TICKETS.getValue(), Command.MENU_LECTURES.getValue());
         messenger.sendMenu("Что хочешь посмотреть?", labels, commands, 1);
-    }
-
-    private void showLectures() {
-        List<LectureStorage> lectures = lectureService.fetchLectures();
-        if (lectures.isEmpty()) {
-            messenger.sendText("Не удалось загрузить лекции. Попробуй позже.");
-        } else {
-            messenger.sendLectures(lectures);
-        }
     }
 
     private void showSubjects() {

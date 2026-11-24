@@ -1,37 +1,35 @@
 package org.kishkotrupp;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
 public class LectureService {
-    private static final String LECTURES_URL = "https://kadm.kmath.ru/pages.php?id=vernikov_kurses_alggeom";
+    private final List<LectureSource> sources;
 
-    public List<LectureStorage> fetchLectures() {
-        List<LectureStorage> lectures = new ArrayList<>();
-        try {
-            // 1. Скачиваем страницу (с таймаутом, чтобы не висеть вечно)
-            Document doc = Jsoup.connect(LECTURES_URL).timeout(10000).get();
+    public LectureService() {
+        PdfParser pdfParser = new PdfParser();
+        //считали озу внутри конструктура
+        TitleCacheStorage cache = new TitleCacheStorage();
 
-            Elements links = doc.select("a[href^=files/]");
+        this(List.of(
+                new KadmKmathSource(),
+                new NarodSource(pdfParser, cache)
+        ));
+    }
 
-            for (Element link : links) {
-                String title = link.text(); // Текст ссылки, например "1. Множества и отображения"
-                String relativeUrl = link.attr("href"); // Относительная ссылка "files/alggeom01.pdf"
+    public LectureService(List<LectureSource> sources) {
+        this.sources = sources;
+    }
 
-                // 3. Превращаем относительную ссылку в абсолютную
-                String absoluteUrl = "https://kadm.kmath.ru/" + relativeUrl;
+    public List<LectureSource> getAvailableSources() {
+        return sources;
+    }
 
-                lectures.add(new LectureStorage(title, absoluteUrl));
+    public List<LectureMeta> fetchLecturesForSource(String sourceName) {
+        for (LectureSource source : sources) {
+            if (source.getSourceName().equals(sourceName)) {
+                return source.fetchLectures();
             }
-        } catch (IOException e) {
-            System.err.println("Не удалось загрузить лекции: " + e.getMessage());
         }
-        return lectures;
+        return List.of();
     }
 }

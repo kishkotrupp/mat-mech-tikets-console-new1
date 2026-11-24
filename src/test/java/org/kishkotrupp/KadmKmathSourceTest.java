@@ -15,7 +15,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-public class LectureServiceTest {
+public class KadmKmathSourceTest {
 
     @Test
     void fetchLectures_ShouldParseLinksFromFakeWebsite() throws Exception {
@@ -43,8 +43,8 @@ public class LectureServiceTest {
             mockedJsoup.when(() -> Jsoup.connect(anyString())).thenReturn(mockConnection);
 
 
-            LectureService service = new LectureService();
-            List<LectureStorage> result = service.fetchLectures();
+            KadmKmathSource service = new KadmKmathSource();
+            List<LectureMeta> result = service.fetchLectures();
 
 
             // вернул ровно 1 лекцию
