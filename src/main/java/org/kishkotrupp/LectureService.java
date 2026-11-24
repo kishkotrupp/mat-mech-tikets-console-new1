@@ -7,6 +7,7 @@ public class LectureService {
 
     public LectureService() {
         PdfParser pdfParser = new PdfParser();
+        //считали озу внутри конструктура
         TitleCacheStorage cache = new TitleCacheStorage();
 
         this(List.of(
