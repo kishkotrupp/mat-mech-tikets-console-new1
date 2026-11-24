@@ -24,6 +24,8 @@ dependencies {
     implementation 'org.xerial:sqlite-jdbc:3.46.0.0'
     // for Api
     implementation 'org.jsoup:jsoup:1.17.2'
+    // for pdf
+    implementation 'org.apache.pdfbox:pdfbox:2.0.30'
 }
 
 java {
