@@ -15,7 +15,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-public class LectureServiceTest {
+public class KadmKmathSourceTest {
 
     @Test
     void fetchLectures_ShouldParseLinksFromFakeWebsite() throws Exception {
