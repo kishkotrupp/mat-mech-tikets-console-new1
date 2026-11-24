@@ -13,9 +13,10 @@ public class TitleCacheStorage {
     private final Path cacheFile;
     // Потокобезопасная мапа для кэша
     private final Map<String, String> cache = new ConcurrentHashMap<>();
+    private static final String TC_FILE = "titles_cache.txt";
 
-    public TitleCacheStorage(String filePath) {
-        this.cacheFile = Paths.get(filePath);
+    public TitleCacheStorage() {
+        this.cacheFile = Paths.get(TC_FILE);
         loadCache();
     }
 
@@ -40,13 +41,14 @@ public class TitleCacheStorage {
 
     // Синхронизированный метод, чтобы потоки не перезаписывали файл одновременно
     public synchronized void saveTitle(String url, String title) {
-        cache.put(url, title);
+        cache.put(url, title); // в озу
         try {
             StringBuilder sb = new StringBuilder();
+            // пересобираем весь файл
             for (Map.Entry<String, String> entry : cache.entrySet()) {
                 sb.append(entry.getKey()).append(";").append(entry.getValue()).append("\n");
             }
-            Files.writeString(cacheFile, sb.toString(), StandardCharsets.UTF_8);
+            Files.writeString(cacheFile, sb.toString(), StandardCharsets.UTF_8); // в пзу
         } catch (IOException e) {
             e.printStackTrace();
         }

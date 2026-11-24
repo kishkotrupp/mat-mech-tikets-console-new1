@@ -110,15 +110,6 @@ public class DialogService {
         messenger.sendMenu("Что хочешь посмотреть?", labels, commands, 1);
     }
 
-//    private void showLectures() {
-//        List<LectureMeta> lectures = lectureService.fetchLectures();
-//        if (lectures.isEmpty()) {
-//            messenger.sendText("Не удалось загрузить лекции. Попробуй позже.");
-//        } else {
-//            messenger.sendLectures(lectures);
-//        }
-//    }
-
     private void showSubjects() {
         List<String> subjects = ticketManager.listSubjects();
 

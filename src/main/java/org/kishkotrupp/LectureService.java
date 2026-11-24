@@ -6,11 +6,9 @@ public class LectureService {
     private final List<LectureSource> sources;
 
     public LectureService() {
-        // Создаем общие компоненты
         PdfParser pdfParser = new PdfParser();
-        TitleCacheStorage cache = new TitleCacheStorage("titles_cache.txt");
+        TitleCacheStorage cache = new TitleCacheStorage();
 
-        // Передаем их в источники
         this(List.of(
                 new KadmKmathSource(),
                 new NarodSource(pdfParser, cache)

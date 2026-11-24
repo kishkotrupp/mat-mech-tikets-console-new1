@@ -35,7 +35,6 @@ public class NarodSource implements LectureSource {
         try {
             Document doc = Jsoup.connect(URL).timeout(10000).get();
 
-            // Ищем только нужные ссылки (как мы обсуждали ранее)
             Elements links = doc.select("a[href*=DM_KN_], a[href*=Zadachnik_DM_MO2020], a[href*=dzdm_ft2020], a[href*=Zamyatin-graphs]");
 
             for (Element link : links) {
@@ -45,14 +44,12 @@ public class NarodSource implements LectureSource {
                 }
                 String absoluteUrl = "https://univer2005-73.narod.ru/" + link.attr("href");
 
-                // 1. Проверяем кэш
                 String smartTitle = cache.getTitle(absoluteUrl);
 
                 if (smartTitle == null) {
-                    // 2. Если нет в кэше — показываем оригинальный текст
                     smartTitle = originalText;
 
-                    // 3. И запускаем фоновую задачу для скачивания и парсинга
+                    // запускаем фоновую задачу для скачивания и парсинга
                     final String finalUrl = absoluteUrl;
                     executor.submit(() -> {
                         String parsedTitle = pdfParser.extractTitle(finalUrl);
